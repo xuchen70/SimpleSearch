@@ -1,0 +1,43 @@
+<resources>
+    <string name="app_name">极速查单</string>
+    <string name="about">关于</string>
+    <string name="version">version：v%1$s</string>
+    <string name="author">author：mark</string>
+    <string-array name="keys">
+        <item>申通</item>
+        <item>EMS </item>
+        <item>顺丰</item>
+        <item>圆通</item>
+        <item>中通</item>
+        <item>韵达</item>
+        <item>天天</item>
+        <item>汇通</item>
+        <item>全峰</item>
+        <item>德邦</item>
+        <item>速尔</item>
+        <item>优速</item>
+        <item>中速</item>
+        <item>运通</item>
+        <item>宅急送</item>
+        <item>如风达</item>
+    </string-array>
+
+    <string-array name="values">
+        <item>shentong</item>
+        <item>ems</item>
+        <item>shunfeng</item>
+        <item>yuantong</item>
+        <item>zhongtong</item>
+        <item>yunda</item>
+        <item>tiantian</item>
+        <item>huitongkuaidi</item>
+        <item>quanfengkuaidi</item>
+        <item>bangwuliu</item>
+        <item>suer</item>
+        <item>youshuwuliu</item>
+        <item>zhongsukuaidi</item>
+        <item>yuntongkuaidi</item>
+        <item>zhaijisong</item>
+        <item>rufengda</item>
+    </string-array>
+</resources>
