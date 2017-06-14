@@ -47,6 +47,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private final int DATA_NOT_EXIST = 101;
 
     private MyAdapter adapter;
+    private ArrayAdapter<String> arrayAdapter;
 
     private Handler mHandler = new Handler(){
         @Override
@@ -108,7 +109,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void setListener() {
         mSearchButton.setOnClickListener(this);
         mSpinner.setOnItemSelectedListener(listener);
-        mEditText.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,getArray()));
+        arrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, getArray());
+        mEditText.setAdapter(arrayAdapter);
         mEditText.setOnItemClickListener(itemClickListener);
         mListView.setAdapter(adapter = new MyAdapter(this));
         mListView.setEmptyView(emptyView);
@@ -155,7 +157,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (dao != null){
             int index = indexOfArray(getValues(), currentType);
             if (index!=-1){
-                dao.insert(new History(inputText,getKeys()[index],currentType));
+                History history = new History(inputText, getKeys()[index], currentType);
+                if (historyList!=null && !historyList.contains(history)){
+                    historyList.add(history);
+                    arrayAdapter.notifyDataSetChanged();
+                }
+                dao.insert(history);
             }
         }
     }
