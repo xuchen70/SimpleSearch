@@ -5,6 +5,10 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <uses-permission android:name="android.permission.VIBRATE" /> <!-- 震动权限 -->
+    <uses-permission android:name="android.permission.CAMERA" /> <!-- 摄像头权限 -->
+    <uses-feature android:name="android.hardware.camera.autofocus" /> <!-- 自动聚焦权限 -->
+
     <application
         android:allowBackup="true"
         android:icon="@drawable/ic_search_icon"
@@ -20,6 +24,7 @@
         </activity>
         <activity android:name=".AboutActivity" />
         <activity android:name=".DetailActivity"></activity>
+        <activity android:name="com.mark.ss.zxing.activity.CaptureActivity"/>
     </application>
 
 </manifest>

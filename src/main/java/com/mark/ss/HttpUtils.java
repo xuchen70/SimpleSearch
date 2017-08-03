@@ -1,6 +1,5 @@
 package com.mark.ss;
 
-import android.app.Activity;
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.Network;

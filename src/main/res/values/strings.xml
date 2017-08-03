@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">极速查单</string>
     <string name="about">关于</string>
+    <string name="scan_result">扫描结果:%1$s</string>
+    <string name="scan_error">扫描结果异常！</string>
     <string name="version">version：v%1$s</string>
     <string name="author">author：mark</string>
     <string-array name="keys">
@@ -32,7 +34,7 @@
         <item>tiantian</item>
         <item>huitongkuaidi</item>
         <item>quanfengkuaidi</item>
-        <item>bangwuliu</item>
+        <item>debangwuliu</item>
         <item>suer</item>
         <item>youshuwuliu</item>
         <item>zhongsukuaidi</item>

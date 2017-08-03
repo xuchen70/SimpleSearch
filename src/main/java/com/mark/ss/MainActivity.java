@@ -1,11 +1,13 @@
 package com.mark.ss;
 
 import android.content.Intent;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -13,12 +15,13 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
-import android.widget.Button;
-import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.mark.ss.zxing.activity.CaptureActivity;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -36,15 +39,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private AutoCompleteTextView mEditText;
     private Spinner mSpinner;
     private TextView emptyView;
+    private ImageView mQRIcon;
 
     private String currentType;
     private String inputText;
 
     private SearchHistoryDao dao;
+    private boolean isQRMode;
 
     private String TAG = "TAG";
     private final int DATA_OK = 100;
     private final int DATA_NOT_EXIST = 101;
+    private final int REQUEST_QR_CODE = 102;
+
 
     private MyAdapter adapter;
     private ArrayAdapter<String> arrayAdapter;
@@ -109,12 +116,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void setListener() {
         mSearchButton.setOnClickListener(this);
         mSpinner.setOnItemSelectedListener(listener);
+
         arrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, getArray());
         mEditText.setAdapter(arrayAdapter);
         mEditText.setOnItemClickListener(itemClickListener);
+        mEditText.addTextChangedListener(mTextWatcher);
+
         mListView.setAdapter(adapter = new MyAdapter(this));
         mListView.setEmptyView(emptyView);
         mListView.setOnItemClickListener(listItemClickListener);
+
+        mQRIcon.setOnClickListener(this);
     }
 
     private String[] getArray() {
@@ -133,10 +145,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mSearchButton = (TextView) findViewById(R.id.btn_search);
         mSpinner = (Spinner) findViewById(R.id.spinner);
         emptyView = (TextView) findViewById(R.id.text_emptyView);
+
+        mQRIcon = (ImageView) findViewById(R.id.image_icon_qr);
     }
 
     @Override
     public void onClick(View view) {
+        if (view == mSearchButton){
+            search();
+        }else if(view == mQRIcon){
+            if (isQRMode){
+                Intent intent = new Intent(this, CaptureActivity.class);
+                startActivityForResult(intent,REQUEST_QR_CODE);
+            }else {
+                mEditText.setText(null);
+            }
+        }
+    }
+
+    private void search() {
         getData();
 
         inputText = mEditText.getText().toString().trim();
@@ -212,6 +239,51 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
     };
+
+
+    private TextWatcher mTextWatcher = new TextWatcher() {
+        @Override
+        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+        }
+
+        @Override
+        public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+        }
+
+        @Override
+        public void afterTextChanged(Editable s) {
+            if (TextUtils.isEmpty(s)){
+                mQRIcon.setImageResource(R.drawable.ic_scan_code);
+                isQRMode = true;
+            }else {
+                mQRIcon.setImageResource(R.drawable.ic_clear);
+                isQRMode = false;
+            }
+        }
+    };
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_QR_CODE){
+            if (resultCode == Constant.RESULT_CODE_QR_SCAN && data!=null){
+                Bundle extras = data.getExtras();
+                String resultData = extras.getString(Constant.INTENT_EXTRA_KEY_QR_SCAN);
+                if (!TextUtils.isEmpty(resultData)){
+                    if(TextUtils.isDigitsOnly(resultData)){
+                        mEditText.setText(resultData);
+                    } else {
+                        emptyView.setText(getString(R.string.scan_result,resultData));
+                        emptyView.setVisibility(View.VISIBLE);
+                        mListView.setVisibility(View.GONE);
+                    }
+                }else {
+                    mToast(getString(R.string.scan_error));
+                }
+            }
+        }
+    }
 
     private void request() {
         new Thread(new Runnable() {
