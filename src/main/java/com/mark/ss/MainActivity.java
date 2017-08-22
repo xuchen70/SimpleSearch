@@ -29,6 +29,8 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,28 +51,36 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private String TAG = "TAG";
     private final int DATA_OK = 100;
+    private final int DATA_NUMBER_OK = 103;
     private final int DATA_NOT_EXIST = 101;
     private final int REQUEST_QR_CODE = 102;
+
+    private long lastTime = 0;
+    private final int DEFAULT_TIME = 3000;
 
 
     private MyAdapter adapter;
     private ArrayAdapter<String> arrayAdapter;
 
-    private Handler mHandler = new Handler(){
+    private Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
-            switch (msg.what){
+            switch (msg.what) {
                 case DATA_OK:
                     List<Data> data = (List<Data>) msg.obj;
                     setAdapter(data);
-                    if (data.size()>0){
+                    if (data.size() > 0) {
                         saveSearchHistory();
                     }
                     break;
                 case DATA_NOT_EXIST:
                     String message = (String) msg.obj;
                     emptyView.setText(message);
+                    break;
+                case DATA_NUMBER_OK:
+                    setKeySelection(currentType,true);
+                    Log.e(TAG, "handleMessage: "+ currentType);
                     break;
             }
 
@@ -94,21 +104,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_main,menu);
+        getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
-        if (id == R.id.item_about){
-            startActivity(new Intent(this,AboutActivity.class));
+        if (id == R.id.item_about) {
+            startActivity(new Intent(this, AboutActivity.class));
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
-    private void getHistory(){
+    private void getHistory() {
         dao = new SearchHistoryDao(this);
         historyList = dao.query();
     }
@@ -131,7 +141,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private String[] getArray() {
         String[] array = new String[historyList.size()];
-        for (int i=0;i<historyList.size();i++){
+        for (int i = 0; i < historyList.size(); i++) {
             History history = historyList.get(i);
             array[i] = history.getNumber();
         }
@@ -151,13 +161,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onClick(View view) {
-        if (view == mSearchButton){
+        if (view == mSearchButton) {
             search();
-        }else if(view == mQRIcon){
-            if (isQRMode){
+        } else if (view == mQRIcon) {
+            if (isQRMode) {
                 Intent intent = new Intent(this, CaptureActivity.class);
-                startActivityForResult(intent,REQUEST_QR_CODE);
-            }else {
+                startActivityForResult(intent, REQUEST_QR_CODE);
+            } else {
                 mEditText.setText(null);
             }
         }
@@ -167,25 +177,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         getData();
 
         inputText = mEditText.getText().toString().trim();
-        if (TextUtils.isEmpty(inputText)){
-            mToast("请输入运单号后再试");
+        if (TextUtils.isEmpty(inputText)) {
+            mToast(getString(R.string.enter_something));
             return;
         }
 
-        if (!HttpUtils.isNetworkAvailable(this)){
-            mToast("当前无可用网络，请连接网络后重试");
+        if (!HttpUtils.isNetworkAvailable(this)) {
+            mToast(getString(R.string.no_network));
             return;
         }
 
         request();
     }
 
-    private void saveSearchHistory(){
-        if (dao != null){
+    private void saveSearchHistory() {
+        if (dao != null) {
             int index = indexOfArray(getValues(), currentType);
-            if (index!=-1){
+            if (index != -1) {
                 History history = new History(inputText, getKeys()[index], currentType);
-                if (historyList!=null && !historyList.contains(history)){
+                if (historyList != null && !historyList.contains(history)) {
                     historyList.add(history);
                     arrayAdapter.notifyDataSetChanged();
                 }
@@ -194,7 +204,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    private AdapterView.OnItemSelectedListener listener = new AdapterView.OnItemSelectedListener(){
+    private AdapterView.OnItemSelectedListener listener = new AdapterView.OnItemSelectedListener() {
 
         @Override
         public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
@@ -211,30 +221,48 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         @Override
         public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
             Object item = parent.getAdapter().getItem(position);
-            if (item instanceof String){
+            if (item instanceof String) {
                 String content = (String) item;
-                for(int i=0;i<historyList.size();i++){
+                for (int i = 0; i < historyList.size(); i++) {
                     History history = historyList.get(i);
-                    if (content.equals(history.getNumber())){
+                    if (content.equals(history.getNumber())) {
                         String typeCode = history.getTypeCode();
                         currentType = typeCode;
                         String typeName = history.getTypeName();
-                        int index = indexOfArray(getKeys(), typeName);
-                        mSpinner.setSelection(index);
+                        setKeySelection(typeName);
+                        request(content);
+                        return;
                     }
                 }
             }
         }
     };
 
+    private void setKeySelection(String typeName) {
+        setKeySelection(typeName,false);
+    }
+
+
+    private void setKeySelection(String typeName,boolean isHint) {
+        long currentTime = System.currentTimeMillis();
+        int index = indexOfArray(getValues(), typeName);
+        if (index!=-1){
+            mSpinner.setSelection(index);
+            if (isHint && currentTime-lastTime > DEFAULT_TIME){
+                mToast(getString(R.string.auto_discern_number));
+                lastTime = currentTime;
+            }
+        }
+    }
+
     private AdapterView.OnItemClickListener listItemClickListener = new AdapterView.OnItemClickListener() {
         @Override
         public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
             Object item = parent.getAdapter().getItem(position);
-            if (item instanceof Data){
+            if (item instanceof Data) {
                 Data data = (Data) item;
-                Intent intent = new Intent(getBaseContext(),DetailActivity.class);
-                intent.putExtra("content",data.getContext());
+                Intent intent = new Intent(getBaseContext(), DetailActivity.class);
+                intent.putExtra("content", data.getContext());
                 startActivity(intent);
             }
         }
@@ -254,36 +282,97 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         @Override
         public void afterTextChanged(Editable s) {
-            if (TextUtils.isEmpty(s)){
+            if (TextUtils.isEmpty(s)) {
                 mQRIcon.setImageResource(R.drawable.ic_scan_code);
                 isQRMode = true;
-            }else {
+            } else {
                 mQRIcon.setImageResource(R.drawable.ic_clear);
                 isQRMode = false;
+                requestAutoNumber(s.toString().trim());
             }
         }
     };
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == REQUEST_QR_CODE){
-            if (resultCode == Constant.RESULT_CODE_QR_SCAN && data!=null){
+        if (requestCode == REQUEST_QR_CODE) {
+            if (resultCode == Constant.RESULT_CODE_QR_SCAN && data != null) {
                 Bundle extras = data.getExtras();
                 String resultData = extras.getString(Constant.INTENT_EXTRA_KEY_QR_SCAN);
-                if (!TextUtils.isEmpty(resultData)){
-                    if(TextUtils.isDigitsOnly(resultData)){
+                if (!TextUtils.isEmpty(resultData)) {
+                    if (TextUtils.isDigitsOnly(resultData)) {
                         mEditText.setText(resultData);
-                    } else {
-                        emptyView.setText(getString(R.string.scan_result,resultData));
-                        emptyView.setVisibility(View.VISIBLE);
-                        mListView.setVisibility(View.GONE);
                     }
-                }else {
+                    emptyView.setText(getString(R.string.scan_result, resultData));
+                    emptyView.setVisibility(View.VISIBLE);
+                    mListView.setVisibility(View.GONE);
+                } else {
                     mToast(getString(R.string.scan_error));
                 }
             }
         }
     }
+
+    private void request(String inputText){
+        this.inputText = inputText;
+        request();
+    }
+
+    private void requestAutoNumber(final String number){
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    String url = API.autoDiscernNO(number);
+                    String response = HttpUtils.request(url);
+                    List<Number> dataList = parseAutoData(response);
+
+//                    Collections.sort(dataList,new Number());
+                    Log.d(TAG, "run: " + response);
+
+                    if (dataList!=null && dataList.size()>0){
+                        Number num = dataList.get(0);
+                        String comCode = num.getComCode();
+                        currentType = comCode;
+
+                        Message message = Message.obtain();
+                        message.what = DATA_NUMBER_OK;
+                        mHandler.sendMessage(message);
+                    }
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
+
+    private List<Number> parseAutoData(String response) {
+        if (TextUtils.isEmpty(response)){
+            return null;
+        }
+        List<Number> list = new ArrayList<>();
+        try {
+            JSONObject object = new JSONObject(response);
+            JSONArray array = object.optJSONArray("auto");
+            for (int i=0;i<array.length();i++){
+                JSONObject obj = array.getJSONObject(i);
+                Number no = new Number();
+                no.setComCode(obj.optString("comCode"));
+                no.setId(obj.optString("id"));
+                no.setNoCount(obj.optInt("noCount"));
+                no.setNoPre(obj.optString("noPre"));
+                no.setStartTime(obj.optString("startTime"));
+                list.add(no);
+            }
+            return list;
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return list;
+    }
+
 
     private void request() {
         new Thread(new Runnable() {
@@ -297,7 +386,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     message.what = DATA_OK;
                     message.obj = dataList;
                     mHandler.sendMessage(message);
-                    Log.d(TAG, "run: "+response );
+                    Log.d(TAG, "run: " + response);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -305,8 +394,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }).start();
     }
 
-    private List<Data> parse(String json){
-        if (TextUtils.isEmpty(json)){
+    private List<Data> parse(String json) {
+        if (TextUtils.isEmpty(json)) {
             return null;
         }
 
@@ -315,9 +404,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             JSONObject object = new JSONObject(json);
             int status = object.optInt("status");
             int state = object.optInt("state");
-            if (status == 200){
+            if (status == 200) {
                 JSONArray array = object.getJSONArray("data");
-                for (int i=0;i<array.length();i++){
+                for (int i = 0; i < array.length(); i++) {
                     Data data = new Data();
                     JSONObject obj = array.getJSONObject(i);
                     data.setTime(obj.optString("time"));
@@ -327,7 +416,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     list.add(data);
                 }
                 return list;
-            }else{
+            } else {
                 String msg = object.optString("message");
                 Message message = Message.obtain();
                 message.what = DATA_NOT_EXIST;
@@ -341,37 +430,37 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return list;
     }
 
-    private void mToast(String msg){
-        Toast.makeText(this,msg,Toast.LENGTH_SHORT).show();
+    private void mToast(String msg) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
     }
 
-    private void mToast(int res){
+    private void mToast(int res) {
         mToast(getString(res));
     }
 
-    private List<Map<String,String>> getData(){
+    private List<Map<String, String>> getData() {
         String[] types = getKeys();
         String[] values = getValues();
-        List<Map<String,String>> list = new ArrayList<>();
-        for (int i=0;i<types.length;i++){
-            Map<String,String> map = new HashMap<>();
-            map.put(types[i],values[i]);
+        List<Map<String, String>> list = new ArrayList<>();
+        for (int i = 0; i < types.length; i++) {
+            Map<String, String> map = new HashMap<>();
+            map.put(types[i], values[i]);
             list.add(map);
         }
         return list;
-     }
+    }
 
-    private String[] getValues(){
+    private String[] getValues() {
         return getResources().getStringArray(R.array.values);
     }
 
-    private String[] getKeys(){
+    private String[] getKeys() {
         return getResources().getStringArray(R.array.keys);
     }
 
-    private int indexOfArray(String[] array ,String value){
-        for (int i=0;i<array.length;i++){
-            if (array[i].equals(value)){
+    private int indexOfArray(String[] array, String value) {
+        for (int i = 0; i < array.length; i++) {
+            if (array[i].equals(value)) {
                 return i;
             }
         }

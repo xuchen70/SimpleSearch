@@ -13,4 +13,12 @@ public class API {
         return sb.toString();
 
     }
+
+    public static String autoDiscernNO(String number){
+        //https://www.kuaidi100.com/autonumber/autoComNum?text=123456
+        StringBuffer sb = new StringBuffer("https://www.kuaidi100.com/autonumber/autoComNum");
+        sb.append("?text=").append(number==null?"":number);
+        return sb.toString();
+
+    }
 }

@@ -41,7 +41,7 @@
                 android:layout_height="wrap_content"
                 android:completionThreshold="1"
                 android:maxLines="1"
-                android:hint="输入查询单号"
+                android:hint="@string/enter_number"
                 android:maxLength="30"
                 android:textSize="16sp" />
 
@@ -65,7 +65,7 @@
             android:paddingLeft="14dp"
             android:paddingRight="14dp"
             android:paddingTop="6dp"
-            android:text="查询"
+            android:text="@string/query"
             android:textSize="14sp" />
 
     </LinearLayout>
@@ -87,6 +87,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="50dp"
             android:autoLink="all"
+            android:textIsSelectable="true"
             android:gravity="center"
             android:visibility="gone" />
         <!--android:text="输入的单号不存在或选择的快递公司不正确"-->
