@@ -20,27 +20,37 @@ import java.net.URL;
 
 public class HttpUtils {
 
-    public static String request(String uri) throws IOException {
-        String response = null;
+    public static String request(String uri,boolean ifHeader) throws IOException {
         URL url = new URL(uri);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        if (ifHeader){
+            connection.setRequestProperty("Accept","application/json, text/javascript, */*; q=0.01");
+//            connection.setRequestProperty("Accept-Encoding","gzip, deflate, br");
+            connection.setRequestProperty("Accept-Language","zh-CN,zh;q=0.9");
+            connection.setRequestProperty("Connection","keep-alive");
+            connection.setRequestProperty("Host","www.kuaidi100.com");
+            connection.setRequestProperty("Referer","https://www.kuaidi100.com/?from=openv");
+            connection.setRequestProperty("User-Agent","Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36");
+            connection.setRequestProperty("X-Requested-With","XMLHttpRequest");
+        }
         connection.setDoInput(true);
         connection.setDoOutput(true);
         int responseCode = connection.getResponseCode();
         if (responseCode == HttpURLConnection.HTTP_OK){
             InputStream inputStream = connection.getInputStream();
             BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             String line;
             while ((line = br.readLine())!=null){
                 sb.append(line);
             }
-            response = sb.toString();
-            return response;
-        }else {
-
+            return sb.toString();
         }
-        return response;
+        return null;
+    }
+
+    public static String request(String uri) throws IOException {
+        return  request(uri,false);
     }
 
 

@@ -1,9 +1,20 @@
 package com.mark.ss;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.provider.Settings;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.text.Editable;
 import android.text.TextUtils;
@@ -57,11 +68,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private long lastTime = 0;
     private final int DEFAULT_TIME = 3000;
+    private int tryCount = 3;
+
+    private String[] permissions = new String[]{
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            Manifest.permission.CAMERA
+    };
 
 
     private MyAdapter adapter;
     private ArrayAdapter<String> arrayAdapter;
 
+    @SuppressLint("HandlerLeak")
     private Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -79,14 +97,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     emptyView.setText(message);
                     break;
                 case DATA_NUMBER_OK:
-                    setKeySelection(currentType,true);
-                    Log.e(TAG, "handleMessage: "+ currentType);
+                    setKeySelection(currentType, true);
+                    Log.e(TAG, "handleMessage: " + currentType);
                     break;
             }
 
         }
     };
     private List<History> historyList;
+    private final int permissionRequestCode = 101;
 
     private void setAdapter(List<Data> data) {
         adapter.setDatas(data);
@@ -100,6 +119,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         currentType = getValues()[0];
         initView();
         setListener();
+        checkAppPermission();
     }
 
     @Override
@@ -165,11 +185,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             search();
         } else if (view == mQRIcon) {
             if (isQRMode) {
-                Intent intent = new Intent(this, CaptureActivity.class);
-                startActivityForResult(intent, REQUEST_QR_CODE);
+                actionQR();
             } else {
                 mEditText.setText(null);
             }
+        }
+    }
+
+    private void actionQR() {
+        if (checkHasCameraPermission()){
+            Intent intent = new Intent(this, CaptureActivity.class);
+            startActivityForResult(intent, REQUEST_QR_CODE);
+        }else {
+            checkAppPermission();
         }
     }
 
@@ -239,16 +267,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     };
 
     private void setKeySelection(String typeName) {
-        setKeySelection(typeName,false);
+        setKeySelection(typeName, false);
     }
 
 
-    private void setKeySelection(String typeName,boolean isHint) {
+    private void setKeySelection(String typeName, boolean isHint) {
         long currentTime = System.currentTimeMillis();
         int index = indexOfArray(getValues(), typeName);
-        if (index!=-1){
+        if (index != -1) {
             mSpinner.setSelection(index);
-            if (isHint && currentTime-lastTime > DEFAULT_TIME){
+            if (isHint && currentTime - lastTime > DEFAULT_TIME) {
                 mToast(getString(R.string.auto_discern_number));
                 lastTime = currentTime;
             }
@@ -300,9 +328,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Bundle extras = data.getExtras();
                 String resultData = extras.getString(Constant.INTENT_EXTRA_KEY_QR_SCAN);
                 if (!TextUtils.isEmpty(resultData)) {
-                    if (TextUtils.isDigitsOnly(resultData)) {
-                        mEditText.setText(resultData);
-                    }
+                    resultData = resultData.trim();
+//                    if (TextUtils.isDigitsOnly(resultData)) {
+//                    }
+                    mEditText.setText(resultData);
                     emptyView.setText(getString(R.string.scan_result, resultData));
                     emptyView.setVisibility(View.VISIBLE);
                     mListView.setVisibility(View.GONE);
@@ -313,12 +342,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    private void request(String inputText){
+    private void request(String inputText) {
         this.inputText = inputText;
         request();
     }
 
-    private void requestAutoNumber(final String number){
+    private void requestAutoNumber(final String number) {
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -330,7 +359,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 //                    Collections.sort(dataList,new Number());
                     Log.d(TAG, "run: " + response);
 
-                    if (dataList!=null && dataList.size()>0){
+                    if (dataList != null && dataList.size() > 0) {
                         Number num = dataList.get(0);
                         String comCode = num.getComCode();
                         currentType = comCode;
@@ -348,14 +377,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private List<Number> parseAutoData(String response) {
-        if (TextUtils.isEmpty(response)){
+        if (TextUtils.isEmpty(response)) {
             return null;
         }
         List<Number> list = new ArrayList<>();
         try {
             JSONObject object = new JSONObject(response);
             JSONArray array = object.optJSONArray("auto");
-            for (int i=0;i<array.length();i++){
+            for (int i = 0; i < array.length(); i++) {
                 JSONObject obj = array.getJSONObject(i);
                 Number no = new Number();
                 no.setComCode(obj.optString("comCode"));
@@ -380,7 +409,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             public void run() {
                 try {
                     String url = API.getSearchUrl(currentType, inputText);
-                    String response = HttpUtils.request(url);
+                    String response = HttpUtils.request(url,true);
                     List<Data> dataList = parse(response);
                     Message message = Message.obtain();
                     message.what = DATA_OK;
@@ -467,4 +496,95 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return -1;
     }
 
+    private boolean checkHasCameraPermission(){
+        return ContextCompat.checkSelfPermission(this,permissions[1]) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void checkAppPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            List<String> unGranted = new ArrayList<>(); 
+            for (String permission : permissions) {
+                if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                    unGranted.add(permission);
+                }
+
+//                if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+//                    if (ActivityCompat.shouldShowRequestPermissionRationale(this,permission)){
+//                        showPermissionDialog(permission);
+//                    }else {
+//                        requestPermissions(permissions,permissionRequestCode);
+//                    }
+//                }
+            }
+            
+            if (unGranted.size() > 0 ){
+                String[] array = unGranted.toArray(new String[0]);
+                requestPermissions(array,permissionRequestCode);
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == permissionRequestCode){
+            List<String> unGranted = new ArrayList<>();
+            for (int i = 0; i < grantResults.length; i++){
+                if (grantResults[i] != PackageManager.PERMISSION_GRANTED){
+                    unGranted.add(permissions[i]);
+                }
+            }
+
+            if (unGranted.size() > 0){
+                for (String s:unGranted){
+                    if (ActivityCompat.shouldShowRequestPermissionRationale(this,s)){
+                        ActivityCompat.requestPermissions(this,unGranted.toArray(new String[0]),permissionRequestCode);
+                    }else {
+                        showPermissionDialog(s);
+                    }
+                }
+            }
+        }
+    }
+
+
+    private void showPermissionDialog(String permission){
+        String msg;
+        if (TextUtils.equals(permission,permissions[0])){
+            msg = getString(R.string.permission_storage_hint);
+        }else if (TextUtils.equals(permission,permissions[1])){
+            msg = getString(R.string.permission_camera_hint);
+        }else {
+            msg = getString(R.string.permission_other_hint);
+        }
+        showDialog(msg);
+    }
+
+    private void showDialog(String msg) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.dialog_title)
+                .setMessage(msg)
+                .setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        goSetting();
+                    }
+                })
+                .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        dialogInterface.dismiss();
+                    }
+                });
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    private void goSetting() {
+        Intent mIntent = new Intent();
+        mIntent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+        mIntent.setData(Uri.fromParts("package", getPackageName(), null));
+        startActivity(mIntent);
+    }
 }
